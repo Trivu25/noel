@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Christmas - Smile Edition</title>
+    <title>Magic Christmas - Premium Edition</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <style>
         body {
@@ -40,30 +39,15 @@
         }
 
         .guide {
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.7);
             font-size: 14px;
             margin-bottom: 25px;
             text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-            background: rgba(0,0,0,0.5);
-            padding: 10px 25px;
+            background: rgba(0,0,0,0.4);
+            padding: 10px 20px;
             border-radius: 20px;
-            border: 1px solid rgba(255,215,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
             backdrop-filter: blur(5px);
-        }
-
-        .smile-indicator {
-            position: absolute;
-            top: 150px;
-            width: 100%;
-            text-align: center;
-            font-size: 24px;
-            color: #FFD700;
-            font-weight: bold;
-            text-shadow: 0 0 20px #FFD700;
-            opacity: 0;
-            transition: opacity 0.5s;
-            pointer-events: none;
-            letter-spacing: 3px;
         }
 
         button {
@@ -114,16 +98,14 @@
     </style>
 </head>
 <body>
-    <div class="smile-indicator" id="smile-msg">✨ YOUR SMILE IS MAGIC ✨</div>
-
     <div id="ui-layer">
         <div class="guide">
-            😄 <b>SMILE:</b> Light Up &nbsp;|&nbsp; 🫶 <b>Heart:</b> Love &nbsp;|&nbsp; ✊ <b>Fist:</b> Tree
+            🖐 <b>Open:</b> Galaxy &nbsp;|&nbsp; 🫶 <b>Heart:</b> Love &nbsp;|&nbsp; ✊ <b>Fist:</b> Tree &nbsp;|&nbsp; 👌 <b>Pinch:</b> Memory
         </div>
-        <button id="btnStart" onclick="startSystem()">START MAGIC</button>
+        <button id="btnStart" onclick="startSystem()">✨ START MAGIC ✨</button>
     </div>
 
-    <div id="copyright">© Smile Edition 2024</div>
+    <div id="copyright">© Premium Edition 2024</div>
     <div id="canvas-container"></div>
     <video class="input_video" style="display:none"></video>
     <canvas id="camera-preview"></canvas>
@@ -137,9 +119,11 @@
         bgMusic.loop = true; bgMusic.volume = 1.0;
 
         const loader = new THREE.TextureLoader();
+        // Replace these with your actual photos
         const photoFiles = ['./image1.jpg', './image2.jpg', './image3.jpg', './image4.jpg', './image5.jpg'];
         const photoTextures = photoFiles.map(f => loader.load(f));
 
+        // Create glowing textures procedurally
         function createCustomTexture(type) {
             const canvas = document.createElement('canvas');
             canvas.width = 128; canvas.height = 128;
@@ -147,6 +131,7 @@
             const cx = 64, cy = 64;
 
             if (type === 'gold_glow') {
+                // Champagne Gold
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 50);
                 grd.addColorStop(0, 'rgba(255, 255, 240, 1)');
                 grd.addColorStop(0.2, 'rgba(255, 223, 0, 0.8)');
@@ -155,14 +140,18 @@
                 ctx.fillStyle = grd; ctx.fillRect(0, 0, 128, 128);
 
             } else if (type === 'red_light') {
+                // Ruby Red
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 50);
                 grd.addColorStop(0, 'rgba(255, 200, 200, 1)');
                 grd.addColorStop(0.3, 'rgba(220, 20, 60, 0.8)');
                 grd.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = grd; ctx.fillRect(0, 0, 128, 128);
+
             } else if (type === 'snow') {
+                // Soft White Snow
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
                 grd.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                grd.addColorStop(0.5, 'rgba(200, 200, 255, 0.3)');
                 grd.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = grd; ctx.fillRect(0, 0, 128, 128);
             }
@@ -176,11 +165,13 @@
         };
 
         const CONFIG = {
-            goldCount: 2200,
-            redCount: 400,
-            snowCount: 300,
-            treeHeight: 70,
-            treeBaseRadius: 35
+            goldCount: 2500, // Increased density
+            redCount: 500,
+            snowCount: 400,  // New Snow system
+            explodeRadius: 70,
+            photoOrbitRadius: 30,
+            treeHeight: 75,
+            treeBaseRadius: 38
         };
 
         let scene, camera, renderer;
@@ -191,7 +182,7 @@
         let state = 'TREE';
         let selectedIndex = 0;
         let handX = 0.5;
-        let smileValue = 0; // 0.0 to 1.0
+        let isMusicPlaying = false;
 
         // ==========================================
         // 2. THREE.JS SYSTEM
@@ -199,6 +190,7 @@
         function init3D() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
+            // Darker, classy fog
             scene.fog = new THREE.FogExp2(0x050505, 0.0025);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -209,9 +201,10 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
+            // Create Particles
             groupGold = createParticleSystem('gold', CONFIG.goldCount, 2.2);
             groupRed = createParticleSystem('red', CONFIG.redCount, 4.0);
-            groupSnow = createSnowSystem();
+            groupSnow = createSnowSystem(); // ADDED SNOW
 
             createPhotos();
             createDecorations();
@@ -222,13 +215,24 @@
             const positions = [];
             const velocities = [];
             for (let i = 0; i < CONFIG.snowCount; i++) {
-                positions.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200, (Math.random() - 0.5) * 100);
-                velocities.push((Math.random() * 0.2) + 0.1);
+                positions.push(
+                    (Math.random() - 0.5) * 200, // x
+                    (Math.random() - 0.5) * 200, // y
+                    (Math.random() - 0.5) * 100  // z
+                );
+                velocities.push((Math.random() * 0.2) + 0.1); // Fall speed
             }
+
             const geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geo.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 1));
-            const mat = new THREE.PointsMaterial({ size: 3, map: textures.snow, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+
+            const mat = new THREE.PointsMaterial({
+                size: 3, map: textures.snow,
+                transparent: true, opacity: 0.8,
+                depthWrite: false, blending: THREE.AdditiveBlending
+            });
+
             const points = new THREE.Points(geo, mat);
             scene.add(points);
             return points;
@@ -242,49 +246,75 @@
             const phases = [];
 
             for (let i = 0; i < count; i++) {
-                // TREE
+                // --- TREE SHAPE ---
                 const h = Math.random() * CONFIG.treeHeight;
                 const y = h - CONFIG.treeHeight / 2;
                 let radiusRatio = (type === 'gold') ? Math.sqrt(Math.random()) : 0.9 + Math.random() * 0.1;
-                const theta = Math.random() * Math.PI * 2 + h * 0.1;
-                const r = (1 - (h / CONFIG.treeHeight)) * CONFIG.treeBaseRadius * radiusRatio;
+                // Spiral effect for tree
+                const spiralOffset = h * 0.1;
+                const theta = Math.random() * Math.PI * 2 + spiralOffset;
+                const maxR = (1 - (h / CONFIG.treeHeight)) * CONFIG.treeBaseRadius;
+                const r = maxR * radiusRatio;
                 pTreeTargets.push(r * Math.cos(theta), y, r * Math.sin(theta));
 
-                // EXPLODE
-                const u = Math.random(), v = Math.random();
-                const phi = Math.acos(2 * v - 1), lam = 2 * Math.PI * u;
-                const rad = 70 * Math.pow(Math.random(), 1 / 3);
+                // --- EXPLODE (GALAXY) ---
+                const u = Math.random(); const v = Math.random();
+                const phi = Math.acos(2 * v - 1);
+                const lam = 2 * Math.PI * u;
+                const rad = CONFIG.explodeRadius * Math.pow(Math.random(), 1 / 3); // Uniform sphere
                 pExplodeTargets.push(rad * Math.sin(phi) * Math.cos(lam), rad * Math.sin(phi) * Math.sin(lam), rad * Math.cos(phi));
 
-                // HEART
+                // --- HEART SHAPE (Improved) ---
                 const tHeart = Math.random() * Math.PI * 2;
+                // Parametric Heart equations
                 let hx = 16 * Math.pow(Math.sin(tHeart), 3);
                 let hy = 13 * Math.cos(tHeart) - 5 * Math.cos(2 * tHeart) - 2 * Math.cos(3 * tHeart) - Math.cos(4 * tHeart);
                 const rFill = Math.pow(Math.random(), 0.5);
-                pHeartTargets.push(hx * rFill * 2.5, hy * rFill * 2.5 + 5, (Math.random() - 0.5) * 4 * rFill);
+                hx *= rFill; hy *= rFill;
+                const thickness = 4;
+                let hz = (Math.random() - 0.5) * thickness * rFill;
+                const scaleH = 2.5;
+                pHeartTargets.push(hx * scaleH, hy * scaleH + 5, hz);
 
+                // --- INIT POS ---
                 pPositions.push(pTreeTargets[i * 3], pTreeTargets[i * 3 + 1], pTreeTargets[i * 3 + 2]);
                 phases.push(Math.random() * Math.PI * 2);
             }
 
             const geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.Float32BufferAttribute(pPositions, 3));
-            geo.userData = { tree: pTreeTargets, explode: pExplodeTargets, heart: pHeartTargets, phases: phases, baseSize: size };
-            const mat = new THREE.PointsMaterial({ size: size, map: textures[type], transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, color: (type === 'gold') ? 0xFFD700 : 0xFF0044 });
+
+            geo.userData = {
+                tree: pTreeTargets, explode: pExplodeTargets, heart: pHeartTargets,
+                phases: phases, baseSize: size
+            };
+
+            const mat = new THREE.PointsMaterial({
+                size: size,
+                map: textures[type],
+                transparent: true, opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true,
+                color: (type === 'gold') ? 0xFFD700 : 0xFF0044 // Base Tint
+            });
+
             const points = new THREE.Points(geo, mat);
             scene.add(points);
             return points;
         }
 
         function createPhotos() {
-            const geo = new THREE.PlaneGeometry(12, 12);
+            const geo = new THREE.PlaneGeometry(12, 12); // Larger photos
             const borderGeo = new THREE.PlaneGeometry(13, 13);
             const borderMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+
             for (let i = 0; i < 5; i++) {
                 const mat = new THREE.MeshBasicMaterial({ map: photoTextures[i], side: THREE.DoubleSide });
                 const mesh = new THREE.Mesh(geo, mat);
                 const border = new THREE.Mesh(borderGeo, borderMat);
-                border.position.z = -0.1; mesh.add(border);
+                border.position.z = -0.1;
+                mesh.add(border);
                 mesh.visible = false; mesh.scale.set(0, 0, 0);
                 scene.add(mesh);
                 photoMeshes.push(mesh);
@@ -292,225 +322,266 @@
         }
 
         function createDecorations() {
-            // Title
-            const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 256;
+            // MERRY CHRISTMAS TEXT (Using Canvas)
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 256;
             const ctx = canvas.getContext('2d');
-            ctx.font = 'bold 90px "Times New Roman"'; ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center';
-            ctx.shadowColor = "#FFA500"; ctx.shadowBlur = 30; ctx.fillText("MERRY CHRISTMAS", 512, 140);
+            ctx.font = 'bold 90px "Times New Roman", serif';
+            ctx.fillStyle = '#FFD700'; ctx.textAlign = 'center';
+            ctx.shadowColor = "#FFA500"; ctx.shadowBlur = 30;
+            ctx.fillText("MERRY CHRISTMAS", 512, 140);
+
+            // Subtitle
+            ctx.font = 'italic 40px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText("Make a wish...", 512, 200);
+
             const tex = new THREE.CanvasTexture(canvas);
-            titleMesh = new THREE.Mesh(new THREE.PlaneGeometry(70, 17.5), new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending }));
-            titleMesh.position.set(0, 55, 0); scene.add(titleMesh);
+            const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending });
+            titleMesh = new THREE.Mesh(new THREE.PlaneGeometry(70, 17.5), mat);
+            titleMesh.position.set(0, 55, 0);
+            scene.add(titleMesh);
 
-            // Star
-            const sCanvas = document.createElement('canvas'); sCanvas.width = 128; sCanvas.height = 128;
-            const sCtx = sCanvas.getContext('2d'); sCtx.fillStyle = "#FFFACD"; sCtx.shadowColor = "#FFF"; sCtx.shadowBlur = 20;
+            // STAR
+            const starCanvas = document.createElement('canvas');
+            starCanvas.width = 128; starCanvas.height = 128;
+            const sCtx = starCanvas.getContext('2d');
+            sCtx.fillStyle = "#FFFACD"; sCtx.shadowColor = "#FFF"; sCtx.shadowBlur = 20;
             sCtx.beginPath();
+            const cx = 64, cy = 64, outer = 50, inner = 20;
             for (let i = 0; i < 5; i++) {
-                sCtx.lineTo(64 + Math.cos((18 + i * 72) / 180 * Math.PI) * 50, 64 - Math.sin((18 + i * 72) / 180 * Math.PI) * 50);
-                sCtx.lineTo(64 + Math.cos((54 + i * 72) / 180 * Math.PI) * 20, 64 - Math.sin((54 + i * 72) / 180 * Math.PI) * 20);
+                sCtx.lineTo(cx + Math.cos((18 + i * 72) / 180 * Math.PI) * outer, cy - Math.sin((18 + i * 72) / 180 * Math.PI) * outer);
+                sCtx.lineTo(cx + Math.cos((54 + i * 72) / 180 * Math.PI) * inner, cy - Math.sin((54 + i * 72) / 180 * Math.PI) * inner);
             }
-            sCtx.fill();
-            starMesh = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sCanvas), transparent: true, blending: THREE.AdditiveBlending }));
-            starMesh.position.set(0, CONFIG.treeHeight / 2 + 3, 0); scene.add(starMesh);
+            sCtx.closePath(); sCtx.fill();
+            const starTex = new THREE.CanvasTexture(starCanvas);
+            const starMat = new THREE.MeshBasicMaterial({ map: starTex, transparent: true, blending: THREE.AdditiveBlending });
+            starMesh = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), starMat);
+            starMesh.position.set(0, CONFIG.treeHeight / 2 + 3, 0);
+            scene.add(starMesh);
 
-            // Love
-            const lCanvas = document.createElement('canvas'); lCanvas.width = 1024; lCanvas.height = 256;
-            const lCtx = lCanvas.getContext('2d'); lCtx.font = 'bold 120px "Segoe UI"'; lCtx.fillStyle = '#FF1493'; lCtx.textAlign = 'center';
-            lCtx.shadowColor = "#FF69B4"; lCtx.shadowBlur = 40; lCtx.fillText("I LOVE YOU", 512, 130);
-            loveMesh = new THREE.Mesh(new THREE.PlaneGeometry(80, 20), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(lCanvas), transparent: true, blending: THREE.AdditiveBlending }));
-            loveMesh.position.set(0, 0, 20); loveMesh.visible = false; scene.add(loveMesh);
+            // LOVE TEXT
+            const loveCanvas = document.createElement('canvas');
+            loveCanvas.width = 1024; loveCanvas.height = 256;
+            const lCtx = loveCanvas.getContext('2d');
+            lCtx.font = 'bold 120px "Segoe UI", sans-serif';
+            lCtx.fillStyle = '#FF1493'; lCtx.textAlign = 'center';
+            lCtx.shadowColor = "#FF69B4"; lCtx.shadowBlur = 40;
+            lCtx.fillText("I LOVE YOU", 512, 130);
+            const loveTex = new THREE.CanvasTexture(loveCanvas);
+            const loveMat = new THREE.MeshBasicMaterial({ map: loveTex, transparent: true, blending: THREE.AdditiveBlending });
+            loveMesh = new THREE.Mesh(new THREE.PlaneGeometry(80, 20), loveMat);
+            loveMesh.position.set(0, 0, 20);
+            loveMesh.visible = false;
+            scene.add(loveMesh);
         }
 
         // ==========================================
         // 3. ANIMATION LOGIC
         // ==========================================
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = Date.now() * 0.001;
-            const speed = 0.08;
-            const handRotY = (handX - 0.5) * 5.0;
+        function updateSnow() {
+            const positions = groupSnow.geometry.attributes.position.array;
+            const velocities = groupSnow.geometry.attributes.velocity.array;
 
-            // Snow Logic
-            const snPos = groupSnow.geometry.attributes.position.array;
-            const snVel = groupSnow.geometry.attributes.velocity.array;
             for (let i = 0; i < CONFIG.snowCount; i++) {
-                snPos[i * 3 + 1] -= snVel[i];
-                if (snPos[i * 3 + 1] < -60) {
-                    snPos[i * 3 + 1] = 60; snPos[i * 3] = (Math.random() - 0.5) * 200; snPos[i * 3 + 2] = (Math.random() - 0.5) * 100;
+                // Y axis is at index i*3 + 1
+                positions[i * 3 + 1] -= velocities[i];
+
+                // Reset if below screen
+                if (positions[i * 3 + 1] < -60) {
+                    positions[i * 3 + 1] = 60;
+                    positions[i * 3] = (Math.random() - 0.5) * 200; // Random X
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 100; // Random Z
                 }
             }
             groupSnow.geometry.attributes.position.needsUpdate = true;
+            groupSnow.rotation.y += 0.001;
+        }
 
-            // Helper for Particle Groups
-            const updateGroup = (group, targetState) => {
-                const pos = group.geometry.attributes.position.array;
-                const targets = group.geometry.userData[(targetState === 'PHOTO' ? 'explode' : (targetState === 'TREE' ? 'tree' : (targetState === 'HEART' ? 'heart' : 'explode')))];
+        function updateParticleGroup(group, type, targetState, speed, handRotY, time) {
+            const positions = group.geometry.attributes.position.array;
+            const userData = group.geometry.userData;
+            const targetKey = (targetState === 'TREE') ? 'tree' : (targetState === 'HEART' ? 'heart' : 'explode');
+            const targets = userData[(targetState === 'PHOTO') ? 'explode' : targetKey];
 
-                for (let i = 0; i < pos.length; i++) {
-                    pos[i] += (targets[i] - pos[i]) * speed;
+            // Lerp Position
+            for (let i = 0; i < positions.length; i++) {
+                positions[i] += (targets[i] - positions[i]) * speed;
+            }
+            group.geometry.attributes.position.needsUpdate = true;
+
+            // Dynamic Pulse (Simulated Music Beat)
+            const beat = 1 + Math.sin(time * 6) * 0.05; // 6 is roughly 120BPM tempo
+
+            if (targetState === 'TREE') {
+                group.rotation.y += 0.004;
+                // Add pulse to tree
+                group.scale.set(beat, beat, beat);
+            } else if (targetState === 'HEART') {
+                group.rotation.y = 0;
+                // Stronger heartbeat
+                const heartBeat = 1 + Math.pow(Math.sin(time * 4), 2) * 0.2;
+                group.scale.set(heartBeat, heartBeat, heartBeat);
+            } else {
+                // EXPLODE/GALAXY
+                group.scale.set(1, 1, 1);
+                group.rotation.y += (handRotY - group.rotation.y) * 0.05;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+            const speed = 0.06; // Smooth transition
+            const handRotY = (handX - 0.5) * 5.0;
+
+            updateSnow();
+            updateParticleGroup(groupGold, 'gold', state, speed, handRotY, time);
+            updateParticleGroup(groupRed, 'red', state, speed, handRotY, time);
+
+            // Update Photos
+            photoMeshes.forEach((mesh, i) => {
+                if (!mesh.material.map && photoTextures[i]) {
+                    mesh.material.map = photoTextures[i]; mesh.material.needsUpdate = true;
                 }
-                group.geometry.attributes.position.needsUpdate = true;
+            });
 
-                // SMILE EFFECT: Brightness and Size Pulse
-                // When smileValue is high, tree scales up slightly and rotates faster
-                const baseScale = (targetState === 'HEART') ? (1 + Math.abs(Math.sin(time * 3)) * 0.15) : 1;
-                const smileScale = 1 + (smileValue * 0.2); // 20% bigger when smiling
-
-                let s = baseScale * smileScale;
-                group.scale.set(s, s, s);
-
-                if (targetState === 'TREE') {
-                    group.rotation.y += 0.004 + (smileValue * 0.02); // Spin faster on smile
-                } else if (targetState === 'EXPLODE') {
-                    group.rotation.y += (handRotY - group.rotation.y) * 0.05;
-                } else {
-                    group.rotation.y = 0;
-                }
-            };
-
-            updateGroup(groupGold, state);
-            updateGroup(groupRed, state);
-
-            // Visual updates
             if (state === 'TREE') {
                 titleMesh.visible = true; starMesh.visible = true; loveMesh.visible = false;
                 titleMesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
 
-                // Star reacts to smile
-                starMesh.rotation.z -= 0.01 + (smileValue * 0.1);
-                const starPulse = 1 + Math.sin(time * 5) * 0.2 + smileValue;
+                // Twinkle Star
+                starMesh.rotation.z -= 0.01;
+                const starPulse = 1 + Math.sin(time * 5) * 0.2;
                 starMesh.scale.set(starPulse, starPulse, 1);
-                starMesh.material.color.setHSL(0.16, 1, 0.5 + smileValue * 0.5); // Brighter star
 
-                photoMeshes.forEach(m => { m.visible = false; m.scale.set(0, 0, 0); });
+                photoMeshes.forEach(m => { m.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1); m.visible = false; });
 
             } else if (state === 'HEART') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = true;
-                photoMeshes.forEach(m => m.visible = false);
+                photoMeshes.forEach(m => { m.visible = false; });
+
                 const s = 1 + Math.abs(Math.sin(time * 3)) * 0.1;
                 loveMesh.scale.set(s, s, 1);
 
             } else if (state === 'EXPLODE') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = false;
+
                 const baseAngle = groupGold.rotation.y;
-                let bestIdx = 0, maxZ = -999;
+                const angleStep = (Math.PI * 2) / 5;
+                let bestIdx = 0; let maxZ = -999;
+
                 photoMeshes.forEach((mesh, i) => {
                     mesh.visible = true;
-                    const angle = baseAngle + i * (Math.PI * 2 / 5);
+                    const angle = baseAngle + i * angleStep;
                     const x = Math.sin(angle) * CONFIG.photoOrbitRadius;
                     const z = Math.cos(angle) * CONFIG.photoOrbitRadius;
                     const y = Math.sin(time * 1.5 + i) * 4;
+
                     mesh.position.lerp(new THREE.Vector3(x, y, z), 0.08);
                     mesh.lookAt(camera.position);
+
                     if (z > maxZ) { maxZ = z; bestIdx = i; }
-                    if (z > 5) mesh.scale.lerp(new THREE.Vector3(1 + z / 30, 1 + z / 30, 1 + z / 30), 0.1);
-                    else mesh.scale.lerp(new THREE.Vector3(0.5, 0.5, 0.5), 0.1);
+
+                    if (z > 5) {
+                        const ds = 1.0 + (z / CONFIG.photoOrbitRadius);
+                        mesh.scale.lerp(new THREE.Vector3(ds, ds, ds), 0.1);
+                    } else {
+                        mesh.scale.lerp(new THREE.Vector3(0.5, 0.5, 0.5), 0.1);
+                    }
                 });
                 selectedIndex = bestIdx;
+
             } else if (state === 'PHOTO') {
+                loveMesh.visible = false;
                 photoMeshes.forEach((mesh, i) => {
                     if (i === selectedIndex) {
+                        // Bring close
                         mesh.position.lerp(new THREE.Vector3(0, 0, 70), 0.1);
                         mesh.scale.lerp(new THREE.Vector3(6, 6, 6), 0.1);
-                        mesh.lookAt(camera.position);
-                    } else mesh.scale.set(0, 0, 0);
+                        mesh.lookAt(camera.position); mesh.rotation.z = Math.sin(time) * 0.05; // Gentle float
+                    } else {
+                        mesh.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                    }
                 });
             }
-
             renderer.render(scene, camera);
         }
 
         // ==========================================
-        // 4. HOLISTIC INPUT (Face + Hands)
+        // 4. COMPUTER VISION & INPUT
         // ==========================================
         function startSystem() {
             document.getElementById('btnStart').style.display = 'none';
             document.querySelector('.guide').style.opacity = '0.5';
-            bgMusic.play().catch(e => console.log(e));
+
+            // Try to play music
+            bgMusic.play().then(() => {
+                isMusicPlaying = true;
+            }).catch(e => console.log("Audio play failed (interaction needed):", e));
+
             init3D();
 
             const video = document.getElementsByClassName('input_video')[0];
             const canvas = document.getElementById('camera-preview');
             const ctx = canvas.getContext('2d');
 
-            // Using Holistic (Face + Hands) - Optimized for 'Lite' performance
-            const holistic = new Holistic({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}` });
-            holistic.setOptions({
-                modelComplexity: 0, // 0 = Lite (Fastest), 1 = Full, 2 = Heavy
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
+            const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+            hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-            holistic.onResults(results => {
+            hands.onResults(results => {
                 ctx.clearRect(0, 0, 140, 105);
-                ctx.save(); ctx.scale(-1, 1); ctx.translate(-140, 0);
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.translate(-140, 0);
                 ctx.drawImage(results.image, 0, 0, 140, 105);
                 ctx.restore();
 
-                // 1. SMILE DETECTION
-                if (results.faceLandmarks) {
-                    const f = results.faceLandmarks;
-                    // Mouth corners: 61 (Left), 291 (Right)
-                    // Face Width ref: 234 (Left Ear), 454 (Right Ear)
-                    const mouthW = Math.hypot(f[61].x - f[291].x, f[61].y - f[291].y);
-                    const faceW = Math.hypot(f[234].x - f[454].x, f[234].y - f[454].y);
-
-                    if (faceW > 0) {
-                        const ratio = mouthW / faceW;
-                        // Approx ratio: Neutral ~0.4, Smile ~0.5+
-                        let targetSmile = 0;
-                        if (ratio > 0.48) targetSmile = (ratio - 0.48) * 10; // Normalize
-                        if (targetSmile > 1) targetSmile = 1;
-
-                        // Smooth transition
-                        smileValue += (targetSmile - smileValue) * 0.1;
-                    }
-                }
-
-                const smileMsg = document.getElementById('smile-msg');
-                if (smileValue > 0.6) smileMsg.style.opacity = '1';
-                else smileMsg.style.opacity = '0';
-
-                // 2. HAND GESTURE LOGIC
-                const lh = results.leftHandLandmarks;
-                const rh = results.rightHandLandmarks;
-                let activeHand = rh || lh; // Prefer right, fallback left
-
-                // Check HEART (Both hands needed)
-                if (lh && rh) {
-                    const distIndex = Math.hypot(lh[8].x - rh[8].x, lh[8].y - rh[8].y);
-                    const distThumb = Math.hypot(lh[4].x - rh[4].x, lh[4].y - rh[4].y);
+                // Logic Detect
+                if (results.multiHandLandmarks.length === 2) {
+                    const h1 = results.multiHandLandmarks[0]; const h2 = results.multiHandLandmarks[1];
+                    const distIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
+                    const distThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
+                    // If fingers touch between 2 hands -> Heart
                     if (distIndex < 0.15 && distThumb < 0.15) {
                         state = 'HEART'; return;
                     }
                 }
 
-                if (activeHand) {
-                    handX = activeHand[9].x; // Middle finger knuckle
-                    const wrist = activeHand[0];
-                    const tips = [8, 12, 16, 20];
-                    let openDist = 0;
-                    tips.forEach(i => openDist += Math.hypot(activeHand[i].x - wrist.x, activeHand[i].y - wrist.y));
-                    const avgDist = openDist / 4;
-                    const pinchDist = Math.hypot(activeHand[4].x - activeHand[8].x, activeHand[4].y - activeHand[8].y);
+                if (results.multiHandLandmarks.length > 0) {
+                    const lm = results.multiHandLandmarks[0];
+                    handX = lm[9].x;
 
-                    if (avgDist < 0.25) state = 'TREE'; // Fist
-                    else if (pinchDist < 0.05) state = 'PHOTO'; // Pinch
-                    else state = 'EXPLODE'; // Open palm
+                    const tips = [8, 12, 16, 20]; const wrist = lm[0];
+                    let openDist = 0; tips.forEach(i => openDist += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
+                    const avgDist = openDist / 4;
+
+                    const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+
+                    if (avgDist < 0.25) {
+                        state = 'TREE';
+                    } else if (pinchDist < 0.05) {
+                        state = 'PHOTO';
+                    } else {
+                        state = 'EXPLODE';
+                    }
                 } else {
                     state = 'TREE';
                 }
             });
 
             const cameraUtils = new Camera(video, {
-                onFrame: async () => { await holistic.send({ image: video }); }, width: 320, height: 240
+                onFrame: async () => { await hands.send({ image: video }); }, width: 320, height: 240
             });
             cameraUtils.start();
         }
 
         window.addEventListener('resize', () => {
-            if (camera) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+            if (camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
         });
     </script>
 </body>
